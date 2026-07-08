@@ -42,7 +42,7 @@
         <!-- 헤더 영역 -->
         <header class="bg-indigo-600 text-white p-6 text-center shadow-md">
             <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">🎯 랜덤 자리 뽑기 프로그램</h1>
-            <p class="text-indigo-100 text-xs md:text-sm mt-2 font-light">가로 4 × 세로 3 격자판에서 10개의 자리를 고르고, 한 명씩 자동으로 진행되는 긴장감 넘치는 추첨을 관찰하세요!</p>
+            <p class="text-indigo-100 text-xs md:text-sm mt-2 font-light">가로 4 × 세로 3 격자판에서 10개의 자리를 고르고, 원하는 방식으로 한 명씩 추첨을 진행해 보세요!</p>
         </header>
 
         <!-- 본문 영역 (2컬럼 반응형 레이아웃) -->
@@ -67,7 +67,7 @@
                     <textarea id="names-textarea" rows="8" 
                         class="w-full p-4 border border-slate-300 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all font-medium text-slate-700 placeholder-slate-400 text-sm resize-none"
                         placeholder="이름을 입력하세요... (예: 홍길동 김철수 이영희 박민수...)"
-                        oninput="onInputChange()"></textarea>
+                        oninput="onTextareaInput()"></textarea>
                 </div>
 
                 <!-- 이름 입력 실시간 상태 표시기 -->
@@ -79,10 +79,18 @@
                         </span>
                     </div>
 
-                    <!-- 실시간 입력 이름 미리보기 목록 -->
-                    <div id="preview-list-container" class="hidden">
-                        <p class="text-xs font-semibold text-slate-400 mb-2">인식된 이름 미리보기:</p>
-                        <div id="names-preview" class="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto p-2 bg-white rounded-lg border border-slate-200">
+                    <!-- 실시간 입력 이름 미리보기 목록 및 순서 섞기 버튼 -->
+                    <div id="preview-list-container" class="hidden space-y-2">
+                        <div class="flex justify-between items-center">
+                            <div class="flex flex-col">
+                                <p class="text-xs font-semibold text-slate-500">인식된 이름 미리보기:</p>
+                                <p class="text-[10px] text-indigo-500 mt-0.5">💡 이름을 누른 후, 다른 이름을 누르면 서로 바뀝니다!</p>
+                            </div>
+                            <button id="shuffle-names-btn" onclick="shuffleInputNames()" class="text-[11px] bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold py-1 px-2.5 rounded-lg border border-amber-200 transition flex items-center gap-1 active:scale-95 shadow-sm">
+                                🔀 순서 섞기
+                            </button>
+                        </div>
+                        <div id="names-preview" class="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto p-2.5 bg-white rounded-lg border border-slate-200">
                             <!-- JS에 의해 채워짐 -->
                         </div>
                     </div>
@@ -92,8 +100,20 @@
             <!-- 오른쪽 컬럼: 자리 배치 및 4*3 그리드 선택 -->
             <section class="lg:col-span-7 flex flex-col justify-between">
                 <div>
+                    <!-- 추첨 모드 제어 선택 탭 -->
+                    <div class="flex justify-center mb-5">
+                        <div class="inline-flex p-1.5 bg-slate-100 rounded-2xl border border-slate-200 shadow-inner">
+                            <button id="mode-default-btn" onclick="setMode('default')" class="px-4 py-2 text-xs md:text-sm font-bold rounded-xl transition-all bg-white text-indigo-600 shadow-sm border border-slate-200/50">
+                                ⏱️ 기본 5초 스릴 추첨
+                            </button>
+                            <button id="mode-number-btn" onclick="setMode('number')" class="px-4 py-2 text-xs md:text-sm font-medium rounded-xl transition-all text-slate-500 hover:text-slate-800">
+                                🔢 숫자 지정 추첨 (1~10)
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2">
+                        <h2 class="text-base md:text-lg font-bold text-slate-700 flex items-center gap-2">
                             🪑 가로 4 × 세로 3 자리 선택
                         </h2>
                         <span id="seat-count-badge" class="text-sm font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-700 transition-colors">
@@ -111,8 +131,8 @@
                             👨‍🏫 교 탁 (칠판 방향)
                         </div>
                         
-                        <!-- 실시간 진행 상태 한글 라벨 (글씨 크기를 기존보다 약 2배 크게 조정 및 줄바꿈 대비 유동적 높이 확보) -->
-                        <div id="live-status" class="mt-4 text-lg md:text-2xl font-bold text-indigo-600 min-h-[4.5rem] flex flex-wrap items-center justify-center gap-2 text-center transition-all duration-300">
+                        <!-- 실시간 진행 상태 한글 라벨 -->
+                        <div id="live-status" class="mt-4 text-lg md:text-2xl font-bold text-indigo-600 min-h-[5.5rem] w-full flex flex-wrap items-center justify-center gap-2 text-center transition-all duration-300">
                             💡 원하는 자리 10개를 선택하고 명단을 입력해 주세요!
                         </div>
                     </div>
@@ -156,6 +176,8 @@
         const TARGET_COUNT = 10;
         let selectedSeats = []; // 선택된 자리의 인덱스 배열 (0 ~ 11)
         let isDrawing = false; // 현재 드로우(애니메이션) 진행 중 여부
+        let selectedNameIndex = null; // 순서 교환용으로 선택된 이름의 인덱스
+        let currentMode = 'default'; // 'default' (5초 스릴) or 'number' (숫자지정)
 
         // 웹 오디오 신디사이저 (효과음용)
         let audioCtx = null;
@@ -188,18 +210,19 @@
             }
         }
 
+        // 경쾌한 매칭 완료 효과음
         function playSuccessSound() {
-            // 경쾌한 매칭 완료 효과음
             setTimeout(() => playBeep(523.25, 'triangle', 0.15), 0); // 도 (C5)
             setTimeout(() => playBeep(659.25, 'triangle', 0.15), 100); // 미 (E5)
             setTimeout(() => playBeep(783.99, 'sine', 0.3), 200); // 솔 (G5)
         }
 
+        // 버튼 및 카드 상호작용 클릭음
         function playClickSound() {
             playBeep(440, 'sine', 0.05); // 짧은 라 (A4)음
         }
 
-        // 긴장감 넘치는 감속 비프음 (단계가 진행될수록 피치 상승으로 긴장 유도)
+        // 긴장감 넘치는 감속 비프음
         function playSuspenseTick(step, total) {
             const freq = 280 + (step / total) * 380; // 280Hz ~ 660Hz로 자연스러운 상승
             playBeep(freq, 'triangle', 0.04);
@@ -223,6 +246,26 @@
                 alertBox.classList.remove('opacity-100', 'translate-y-0');
                 alertBox.classList.add('opacity-0', 'pointer-events-none', '-translate-y-20');
             }, 3000);
+        }
+
+        // 모드 변경 제어 함수
+        function setMode(mode) {
+            if (isDrawing) return;
+            currentMode = mode;
+            playClickSound();
+
+            const defBtn = document.getElementById('mode-default-btn');
+            const numBtn = document.getElementById('mode-number-btn');
+            
+            if (mode === 'default') {
+                defBtn.className = "px-4 py-2 text-xs md:text-sm font-bold rounded-xl transition-all bg-white text-indigo-600 shadow-sm border border-slate-200/50";
+                numBtn.className = "px-4 py-2 text-xs md:text-sm font-medium rounded-xl transition-all text-slate-500 hover:text-slate-800";
+                document.getElementById('live-status').innerHTML = `💡 원하는 자리 10개를 선택하고 명단을 입력해 주세요!`;
+            } else {
+                numBtn.className = "px-4 py-2 text-xs md:text-sm font-bold rounded-xl transition-all bg-white text-indigo-600 shadow-sm border border-slate-200/50";
+                defBtn.className = "px-4 py-2 text-xs md:text-sm font-medium rounded-xl transition-all text-slate-500 hover:text-slate-800";
+                document.getElementById('live-status').innerHTML = `🔢 숫자 지정 모드가 선택되었습니다. 추첨 시작 시 인원별로 숫자를 정합니다!`;
+            }
         }
 
         // 초기 격자판 생성
@@ -297,6 +340,13 @@
             return text.split(/[\s,]+/).filter(name => name.trim() !== "");
         }
 
+        // 수동으로 텍스트 입력창 수정 시 호출
+        function onTextareaInput() {
+            // 사용자가 타이핑 중일 때는 순서 교환 선택 초기화
+            selectedNameIndex = null;
+            onInputChange();
+        }
+
         // 실시간 텍스트 박스 입력 변화 대응
         function onInputChange() {
             const names = getParsedNames();
@@ -315,11 +365,59 @@
             // 미리보기 영역 렌더링
             if (names.length > 0) {
                 previewContainer.classList.remove('hidden');
-                previewDiv.innerHTML = names.map(name => 
-                    `<span class="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-full border border-indigo-100 font-medium">${escapeHTML(name)}</span>`
-                ).join('');
+                
+                previewDiv.innerHTML = names.map((name, index) => {
+                    const isSelected = selectedNameIndex === index;
+                    // 선택 여부에 따른 동적 클래스 부여 (선택 시 화려한 앰버 톤으로 연출)
+                    const badgeClass = isSelected
+                        ? "bg-amber-400 text-slate-900 border-amber-500 font-bold scale-105 shadow-md shadow-amber-200 ring-2 ring-amber-300"
+                        : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-100 font-medium hover:scale-[1.03]";
+                    
+                    return `
+                        <button onclick="handleNameClick(${index})" 
+                                class="text-xs px-3 py-1.5 rounded-full border transition-all duration-150 transform ${badgeClass} cursor-pointer active:scale-95 select-none ${isDrawing ? 'opacity-50 cursor-not-allowed' : ''}"
+                                ${isDrawing ? 'disabled' : ''}>
+                            ${escapeHTML(name)}
+                        </button>
+                    `;
+                }).join('');
             } else {
                 previewContainer.classList.add('hidden');
+            }
+        }
+
+        // 개별 이름 배지를 클릭했을 때의 교환(Swap) 관리 로직
+        function handleNameClick(index) {
+            if (isDrawing) return;
+
+            const names = getParsedNames();
+
+            if (selectedNameIndex === null) {
+                // 첫 번째 이름 선택
+                selectedNameIndex = index;
+                playBeep(493.88, 'sine', 0.08); // 경쾌한 시(B4) 사운드
+                onInputChange(); // 선택 상태 강조를 위한 리렌더링
+            } else {
+                // 두 번째 이름 선택
+                if (selectedNameIndex === index) {
+                    // 본인을 다시 누르면 선택 취소
+                    selectedNameIndex = null;
+                    playClickSound();
+                    onInputChange();
+                } else {
+                    // 위치 서로 바꾸기 (Swap)
+                    const temp = names[selectedNameIndex];
+                    names[selectedNameIndex] = names[index];
+                    names[index] = temp;
+
+                    // 줄바꿈 텍스트 에어리어 최신화
+                    document.getElementById('names-textarea').value = names.join(', ');
+
+                    // 상태 초기화 및 교환 완료 사운드
+                    selectedNameIndex = null;
+                    playBeep(587.33, 'triangle', 0.1); // 솔라시 도(C5) 계열 매칭 교환 효과음
+                    onInputChange();
+                }
             }
         }
 
@@ -351,10 +449,37 @@
         // 10명의 가상 한국인 이름 대량 입력
         function fillMockNames() {
             if (isDrawing) return;
+            selectedNameIndex = null;
             const mockList = ["민수", "서연", "지우", "예준", "하은", "우진", "서현", "정우", "도윤", "지원"];
             document.getElementById('names-textarea').value = mockList.join(", ");
             onInputChange();
             playClickSound();
+        }
+
+        // 입력된 이름들의 순서를 무작위로 섞는 기능 (순서 섞기 유지)
+        function shuffleInputNames() {
+            if (isDrawing) return;
+
+            const names = getParsedNames();
+            if (names.length === 0) {
+                showCustomAlert("섞을 이름이 없습니다. 먼저 이름을 입력해 주세요!");
+                return;
+            }
+
+            selectedNameIndex = null; // 선택된 인덱스 초기화
+
+            // Fisher-Yates 셔플로 이름 무작위 정렬
+            const shuffled = shuffleArray(names);
+            
+            // 텍스트 영역 업데이트 (쉼표로 구분하여 정렬 가독성 확보)
+            document.getElementById('names-textarea').value = shuffled.join(', ');
+            
+            // 프리뷰 및 상태 뱃지 갱신
+            onInputChange();
+            
+            // 경쾌한 셔플 효과음 재생
+            playBeep(587.33, 'triangle', 0.08); // 레 (D5)
+            setTimeout(() => playBeep(880, 'sine', 0.12), 80); // 라 (A5)
         }
 
         // Fisher-Yates 셔플 알고리즘
@@ -408,10 +533,43 @@
             `;
         }
 
+        // 숫자 지정 모드에서 대화형으로 입력을 받기 위한 Promise 처리 함수
+        function askForNumber(personName) {
+            return new Promise((resolve) => {
+                const statusEl = document.getElementById('live-status');
+                statusEl.innerHTML = `
+                    <div class="flex flex-col items-center gap-2.5 w-full animate-pop">
+                        <div class="text-sm md:text-base text-slate-500 font-medium">
+                            🎯 <span class="text-indigo-800 font-black text-xl md:text-2xl px-1.5 bg-indigo-50 rounded-lg">${escapeHTML(personName)}</span> 님의 차례! 몇 번째 나온 자리에 앉을까요?
+                        </div>
+                        <div class="flex flex-wrap justify-center gap-1.5 mt-1 max-w-lg">
+                            ${Array.from({length: 10}, (_, i) => i + 1).map(num => `
+                                <button onclick="selectDrawNumber(${num})" class="w-9 h-9 md:w-11 md:h-11 bg-white hover:bg-indigo-600 hover:text-white text-indigo-700 font-extrabold rounded-xl border border-indigo-200 hover:border-indigo-600 shadow-sm transition-all text-sm md:text-base transform active:scale-90 flex items-center justify-center">
+                                    ${num}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                // 전역 공간에 resolve 함수 바인딩하여 버튼 클릭 시 진행되도록 유도
+                window.resolveDrawNumber = resolve;
+            });
+        }
+
+        // 숫자 패드 클릭 시 실시간 Promise 해제
+        function selectDrawNumber(num) {
+            playClickSound();
+            if (window.resolveDrawNumber) {
+                window.resolveDrawNumber(num);
+                window.resolveDrawNumber = null;
+            }
+        }
+
         // 1명씩 완전히 무인으로 진행하는 고시간 서스펜스 루프
         async function startRandomAssignment() {
             if (isDrawing) return;
 
+            selectedNameIndex = null; // 추첨 전 선택 초기화
             const names = getParsedNames();
 
             // 유효성 예외 처리
@@ -428,6 +586,25 @@
             isDrawing = true;
             document.getElementById('draw-btn').disabled = true;
             document.getElementById('draw-btn').classList.add('opacity-50', 'cursor-not-allowed');
+            
+            const shuffleBtn = document.getElementById('shuffle-names-btn');
+            if (shuffleBtn) {
+                shuffleBtn.disabled = true;
+                shuffleBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+
+            // 모드 전환 버튼도 비활성화
+            const defBtn = document.getElementById('mode-default-btn');
+            const numBtn = document.getElementById('mode-number-btn');
+            if (defBtn && numBtn) {
+                defBtn.disabled = true;
+                numBtn.disabled = true;
+                defBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                numBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+
+            // 미리보기 영역 내 이름들의 클릭 불가 상태 유도를 위해 리렌더링
+            onInputChange();
 
             const statusEl = document.getElementById('live-status');
 
@@ -440,22 +617,33 @@
             // 10명의 인원을 한 명씩 차례대로 추첨
             for (let i = 0; i < TARGET_COUNT; i++) {
                 const currentPerson = names[i];
-                
-                // 상단 보드 현황판 실시간 연출 업데이트 (추첨 중인 사람의 이름을 약 2배 더 크게 부각)
-                statusEl.innerHTML = `⚡ <span class="text-indigo-800 font-black text-3xl md:text-4xl px-2 animate-bounce inline-block">${escapeHTML(currentPerson)}</span> 님의 자리를 추첨하고 있습니다...`;
-
-                // 아직 낙찰 완료되지 않은 대기석 추려내기
                 const available = selectedSeats.filter(s => !assigned.hasOwnProperty(s));
                 
+                let steps = 20; // 기본 모드: 20회 이동
+
+                // 숫자 지정 모드일 때 대기형 처리 구현
+                if (currentMode === 'number') {
+                    steps = await askForNumber(currentPerson);
+                }
+                
+                // 상단 보드 현황판 실시간 연출 업데이트
+                statusEl.innerHTML = `⚡ <span class="text-indigo-800 font-black text-3xl md:text-4xl px-2 animate-bounce inline-block">${escapeHTML(currentPerson)}</span> 님의 자리를 추첨하고 있습니다...`;
+
                 // 최종 결승선이 될 낙찰 자리 무작위 고정
                 const finalSeat = available[Math.floor(Math.random() * available.length)];
 
-                // 약 5초간 스릴감을 유도하는 20단계 감속 로드맵 설계
-                const steps = 20;
+                // 감속 로드맵 설계
                 const sequence = [];
+                let lastTemp = -1;
                 for (let s = 0; s < steps - 1; s++) {
-                    const randVal = available[Math.floor(Math.random() * available.length)];
-                    sequence.push(randVal);
+                    // 바로 이전에 나왔던 자리가 연달아 나오지 않게 제어 (시각적 다양성 확보)
+                    let candidates = available;
+                    if (available.length > 1) {
+                        candidates = available.filter(x => x !== lastTemp);
+                    }
+                    const temp = candidates[Math.floor(Math.random() * candidates.length)];
+                    sequence.push(temp);
+                    lastTemp = temp;
                 }
                 sequence.push(finalSeat); // 마지막 피날레는 무조건 타깃 자리가 되도록 추가
 
@@ -467,8 +655,38 @@
                     highlightSeat(tempSeat, currentPerson);
                     playSuspenseTick(step, steps);
 
-                    // 누적 가변 딜레이 곡선: 40ms에서 출발하여 최종 690ms까지 점진적으로 늦어지며 전체 약 5초 누적
-                    const delay = 40 + 650 * Math.pow(step / (steps - 1), 2.2);
+                    // 숫자 지정 모드인 경우, 실시간 남은 횟수/이동을 우아한 배지로 표기
+                    if (currentMode === 'number') {
+                        // 남은 이동 수에서 -1을 차감하여 마지막 멈출 때 완벽하게 '0번'이 되도록 정밀 수정
+                        const remainingMoves = steps - step - 1;
+                        statusEl.innerHTML = `
+                            <div class="flex flex-col items-center justify-center gap-1.5 animate-pop">
+                                <div class="text-slate-500 text-xs md:text-sm font-medium">🎯 ${escapeHTML(currentPerson)} 님의 자리 지정 추첨 중</div>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-indigo-800 font-black text-3xl md:text-4xl px-2 animate-bounce inline-block">${escapeHTML(currentPerson)}</span>
+                                    <span class="bg-rose-50 text-rose-700 border border-rose-200 text-xs md:text-sm font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                                        🏃 남은 이동: <span class="text-lg md:text-xl font-black text-rose-600 animate-pulse">${remainingMoves}</span>번
+                                    </span>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        statusEl.innerHTML = `⚡ <span class="text-indigo-800 font-black text-3xl md:text-4xl px-2 animate-bounce inline-block">${escapeHTML(currentPerson)}</span> 님의 자리를 추첨하고 있습니다...`;
+                    }
+
+                    let delay;
+                    if (currentMode === 'default') {
+                        // 기본 5초 스릴 모드 감속 곡선
+                        delay = 40 + 650 * Math.pow(step / (steps - 1), 2.2);
+                    } else {
+                        // 숫자 지정 모드용 천천히 진행하는 스릴 넘치는 감속 스피드 곡선 (600ms ~ 1200ms)
+                        if (steps === 1) {
+                            delay = 1200; // 1번 지정 시의 묵직한 1.2초 딜레이
+                        } else {
+                            // 0.6초(600ms)에서 최대 1.2초(1200ms)까지 부드럽고 가파르게 가변 감속
+                            delay = 600 + 600 * Math.pow(step / (steps - 1), 1.8);
+                        }
+                    }
                     await sleep(delay);
 
                     // 멈추기 바로 전 단계였다면 즉시 대기 색상으로 제자리 복구
@@ -485,7 +703,7 @@
                 const row = Math.floor(finalSeat / 4) + 1;
                 const col = (finalSeat % 4) + 1;
                 
-                // 개별 추첨 성공 축하 텍스트 크기도 2배로 조율
+                // 개별 추첨 성공 축하 텍스트 크기 조율
                 statusEl.innerHTML = `🎉 <span class="text-emerald-600 font-black text-3xl md:text-4xl px-2 animate-bounce inline-block">${escapeHTML(currentPerson)}</span> 님 👉 <strong class="text-slate-800 font-black text-xl md:text-3xl">${row}행-${col}열</strong> 당첨!`;
 
                 // 다음 주자로 넘어가기 전에 가볍게 기쁨을 만끽하는 대기 타임 (1.2초)
@@ -497,6 +715,22 @@
             isDrawing = false;
             document.getElementById('draw-btn').disabled = false;
             document.getElementById('draw-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+            
+            if (shuffleBtn) {
+                shuffleBtn.disabled = false;
+                shuffleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+
+            // 모드 선택 버튼도 활성화 복구
+            if (defBtn && numBtn) {
+                defBtn.disabled = false;
+                numBtn.disabled = false;
+                defBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                numBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+
+            // 추첨 종료 후 다시 이름 클릭 및 교환 활성화
+            onInputChange();
         }
 
         // 모든 상태 클리어 및 복구
@@ -507,13 +741,25 @@
 
             // 상태 데이터 리셋
             selectedSeats = [];
+            selectedNameIndex = null;
             document.getElementById('names-textarea').value = '';
-            document.getElementById('live-status').innerHTML = `💡 원하는 자리 10개를 선택하고 명단을 입력해 주세요!`;
+            
+            if (currentMode === 'default') {
+                document.getElementById('live-status').innerHTML = `💡 원하는 자리 10개를 선택하고 명단을 입력해 주세요!`;
+            } else {
+                document.getElementById('live-status').innerHTML = `🔢 숫자 지정 모드가 선택되었습니다. 추첨 시작 시 인원별로 숫자를 정합니다!`;
+            }
             
             // UI 초기화
             initGrid();
             onInputChange();
             updateCountBadges();
+
+            const shuffleBtn = document.getElementById('shuffle-names-btn');
+            if (shuffleBtn) {
+                shuffleBtn.disabled = false;
+                shuffleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
         }
 
         // 페이지 최초 진입 시 초기화
@@ -525,6 +771,3 @@
     </script>
 </body>
 </html>
-``` eof
-
-전체 화면을 가로지르며 **오직 1인을 위한 심도 깊은 슬로우-다운 룰렛(Decelerating Suspense Roulette)**이 작동하게 되었습니다. 우측 하단의 `랜덤 자리 배치하기!` 버튼을 한 번 눌러보시면, 가속과 감속이 어우러지는 최고의 자리 결정 과정을 시청하실 수 있습니다!
