@@ -42,7 +42,7 @@
         <!-- 헤더 영역 -->
         <header class="bg-indigo-600 text-white p-6 text-center shadow-md">
             <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">🎯 랜덤 자리 뽑기 프로그램</h1>
-            <p class="text-indigo-100 text-xs md:text-sm mt-2 font-light">가로 4 × 세로 3 격자판에서 10개의 자리를 고르고, 10명의 이름을 랜덤 매칭해 보세요!</p>
+            <p class="text-indigo-100 text-xs md:text-sm mt-2 font-light">가로 4 × 세로 3 격자판에서 10개의 자리를 고르고, 한 명씩 자동으로 진행되는 긴장감 넘치는 추첨을 관찰하세요!</p>
         </header>
 
         <!-- 본문 영역 (2컬럼 반응형 레이아웃) -->
@@ -55,7 +55,7 @@
                         <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2">
                             👤 참여자 명단 입력
                         </h2>
-                        <button onclick="fillMockNames()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-1.5 px-3 rounded-lg border border-indigo-200 transition">
+                        <button id="mock-names-btn" onclick="fillMockNames()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-1.5 px-3 rounded-lg border border-indigo-200 transition">
                             ⚡ 예시 이름 채우기
                         </button>
                     </div>
@@ -106,9 +106,14 @@
                     </p>
 
                     <!-- 교탁 가상 표시 -->
-                    <div class="w-full flex justify-center mb-6">
+                    <div class="w-full flex flex-col items-center mb-6">
                         <div class="bg-slate-300 text-slate-600 text-xs font-bold py-1.5 px-10 rounded-full shadow-inner tracking-widest border border-slate-400">
                             👨‍🏫 교 탁 (칠판 방향)
+                        </div>
+                        
+                        <!-- 실시간 진행 상태 한글 라벨 (글씨 크기를 기존보다 약 2배 크게 조정 및 줄바꿈 대비 유동적 높이 확보) -->
+                        <div id="live-status" class="mt-4 text-lg md:text-2xl font-bold text-indigo-600 min-h-[4.5rem] flex flex-wrap items-center justify-center gap-2 text-center transition-all duration-300">
+                            💡 원하는 자리 10개를 선택하고 명단을 입력해 주세요!
                         </div>
                     </div>
 
@@ -120,7 +125,7 @@
 
                 <!-- 하단 제어 및 버튼 영역 -->
                 <div class="mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
-                    <button onclick="resetAll()" class="w-full sm:w-1/3 py-4 px-6 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 font-bold rounded-2xl transition flex items-center justify-center gap-2">
+                    <button id="reset-btn" onclick="resetAll()" class="w-full sm:w-1/3 py-4 px-6 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 font-bold rounded-2xl transition flex items-center justify-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18" />
                         </svg>
@@ -194,8 +199,10 @@
             playBeep(440, 'sine', 0.05); // 짧은 라 (A4)음
         }
 
-        function playShuffleSound() {
-            playBeep(261.63, 'square', 0.04); // 낮은 도 (C4)
+        // 긴장감 넘치는 감속 비프음 (단계가 진행될수록 피치 상승으로 긴장 유도)
+        function playSuspenseTick(step, total) {
+            const freq = 280 + (step / total) * 380; // 280Hz ~ 660Hz로 자연스러운 상승
+            playBeep(freq, 'triangle', 0.04);
         }
 
         // 자체 구현 경고창 알림 함수 (alert() 대체)
@@ -268,7 +275,7 @@
                 const seatBtn = document.getElementById(`seat-${i}`);
                 const seatInner = document.getElementById(`seat-inner-${i}`);
                 
-                // 선택되었는지 체크
+                // 선택 되었는지 체크
                 if (selectedSeats.includes(i)) {
                     // 선택된 자리 스타일 적용
                     seatBtn.className = "seat-ratio w-full rounded-2xl bg-indigo-50 border-2 border-indigo-500 text-indigo-600 flex flex-col items-center justify-center transition-all duration-200 transform scale-[1.02] shadow-md shadow-indigo-100 p-2 font-bold select-none relative overflow-hidden";
@@ -365,7 +372,43 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        // 무작위 자리 배치 시작!
+        // 임시 하이라이트 중인 대기 좌석 상태 복원
+        function revertSeat(index) {
+            const btn = document.getElementById(`seat-${index}`);
+            const row = Math.floor(index / 4) + 1;
+            const col = (index % 4) + 1;
+            btn.className = "seat-ratio w-full rounded-2xl bg-indigo-50 border-2 border-indigo-200 text-indigo-400 flex flex-col items-center justify-center transition-all duration-200 p-2 font-bold select-none relative overflow-hidden";
+            btn.innerHTML = `
+                <span class="text-xs font-semibold opacity-70 tracking-tight">${row}행-${col}열</span>
+                <span class="text-indigo-400 font-semibold text-xs md:text-sm animate-pulse mt-1">대기</span>
+            `;
+        }
+
+        // 룰렛 진행 중 임시 하이라이트 상태 (주황/옐로우 계열 피드백)
+        function highlightSeat(index, name) {
+            const btn = document.getElementById(`seat-${index}`);
+            const row = Math.floor(index / 4) + 1;
+            const col = (index % 4) + 1;
+            btn.className = "seat-ratio w-full rounded-2xl bg-amber-400 border-2 border-amber-500 text-slate-900 flex flex-col items-center justify-center transition-all duration-75 transform scale-[1.05] shadow-md shadow-amber-200 p-2 font-bold select-none relative overflow-hidden z-10 animate-pop";
+            btn.innerHTML = `
+                <span class="text-[10px] text-slate-700 font-semibold mb-1">${row}행-${col}열</span>
+                <span class="text-xs md:text-sm font-black truncate max-w-full text-slate-950">${escapeHTML(name)}?</span>
+            `;
+        }
+
+        // 최종 안착 상태 (그린 계열 피드백)
+        function lockSeat(index, name) {
+            const btn = document.getElementById(`seat-${index}`);
+            const row = Math.floor(index / 4) + 1;
+            const col = (index % 4) + 1;
+            btn.className = "seat-ratio w-full rounded-2xl bg-emerald-500 border-2 border-emerald-600 text-white flex flex-col items-center justify-center transition-all duration-300 p-2 font-bold select-none relative overflow-hidden shadow-lg animate-pop";
+            btn.innerHTML = `
+                <span class="text-[10px] text-emerald-100 font-medium tracking-tight mb-1">${row}행-${col}열</span>
+                <span class="text-base md:text-xl font-black tracking-wide truncate max-w-full drop-shadow">${escapeHTML(name)}</span>
+            `;
+        }
+
+        // 1명씩 완전히 무인으로 진행하는 고시간 서스펜스 루프
         async function startRandomAssignment() {
             if (isDrawing) return;
 
@@ -381,62 +424,76 @@
                 return;
             }
 
-            // 동작 제어 상태 세팅
+            // 동작 제어 상태 세팅 (모든 제어기 비활성화)
             isDrawing = true;
             document.getElementById('draw-btn').disabled = true;
             document.getElementById('draw-btn').classList.add('opacity-50', 'cursor-not-allowed');
 
-            // 최종 매칭될 리스트 셔플
-            const shuffledNames = shuffleArray(names);
+            const statusEl = document.getElementById('live-status');
 
-            // 시각 효과: 셔플 애니메이션 시작
-            // 선택된 10개의 칸에 다른 이름들이 뱅글뱅글 돌아가는 듯한 모션 연출
-            const shuffleCycles = 15; // 깜빡임 반복 횟수
-            const baseInterval = 80;  // 깜빡이는 기준 주파수 (ms)
+            // 초기 좌석들 전부 '대기' 상태로 시각적 정규화
+            selectedSeats.forEach(index => revertSeat(index));
 
-            for (let c = 0; c < shuffleCycles; c++) {
-                // 셔플 소리 재생
-                if (c % 2 === 0) playShuffleSound();
+            // 결과 기록용 매칭 사전
+            let assigned = {}; 
 
-                // 가상으로 매번 섞인 중간 값들을 화면에 임시 렌더링
-                const tempShuffled = shuffleArray(names);
+            // 10명의 인원을 한 명씩 차례대로 추첨
+            for (let i = 0; i < TARGET_COUNT; i++) {
+                const currentPerson = names[i];
+                
+                // 상단 보드 현황판 실시간 연출 업데이트 (추첨 중인 사람의 이름을 약 2배 더 크게 부각)
+                statusEl.innerHTML = `⚡ <span class="text-indigo-800 font-black text-3xl md:text-4xl px-2 animate-bounce inline-block">${escapeHTML(currentPerson)}</span> 님의 자리를 추첨하고 있습니다...`;
 
-                selectedSeats.forEach((seatIndex, idx) => {
-                    const seatInner = document.getElementById(`seat-inner-${seatIndex}`);
-                    const seatBtn = document.getElementById(`seat-${seatIndex}`);
-                    
-                    // 중간 상태는 활기찬 오렌지색/인디고색 믹스로 표현
-                    seatBtn.className = "seat-ratio w-full rounded-2xl bg-indigo-500 border-2 border-indigo-600 text-white flex flex-col items-center justify-center transition-all duration-75 p-2 font-bold select-none relative overflow-hidden scale-105 shadow-md";
-                    seatInner.innerHTML = `<span class="text-white text-sm md:text-base tracking-wide truncate max-w-full">${escapeHTML(tempShuffled[idx])}</span>`;
-                });
+                // 아직 낙찰 완료되지 않은 대기석 추려내기
+                const available = selectedSeats.filter(s => !assigned.hasOwnProperty(s));
+                
+                // 최종 결승선이 될 낙찰 자리 무작위 고정
+                const finalSeat = available[Math.floor(Math.random() * available.length)];
 
-                // 주기를 조금씩 점차 늦춰 현실감 극대화
-                const delayMs = baseInterval + (c * 12);
-                await sleep(delayMs);
+                // 약 5초간 스릴감을 유도하는 20단계 감속 로드맵 설계
+                const steps = 20;
+                const sequence = [];
+                for (let s = 0; s < steps - 1; s++) {
+                    const randVal = available[Math.floor(Math.random() * available.length)];
+                    sequence.push(randVal);
+                }
+                sequence.push(finalSeat); // 마지막 피날레는 무조건 타깃 자리가 되도록 추가
+
+                // 룰렛 주행
+                for (let step = 0; step < steps; step++) {
+                    const tempSeat = sequence[step];
+
+                    // 현재 탐색 좌석 고유 오렌지 라이팅
+                    highlightSeat(tempSeat, currentPerson);
+                    playSuspenseTick(step, steps);
+
+                    // 누적 가변 딜레이 곡선: 40ms에서 출발하여 최종 690ms까지 점진적으로 늦어지며 전체 약 5초 누적
+                    const delay = 40 + 650 * Math.pow(step / (steps - 1), 2.2);
+                    await sleep(delay);
+
+                    // 멈추기 바로 전 단계였다면 즉시 대기 색상으로 제자리 복구
+                    if (step < steps - 1) {
+                        revertSeat(tempSeat);
+                    }
+                }
+
+                // 🏆 단일 안착 완료 🏆
+                assigned[finalSeat] = currentPerson;
+                lockSeat(finalSeat, currentPerson);
+                playSuccessSound();
+
+                const row = Math.floor(finalSeat / 4) + 1;
+                const col = (finalSeat % 4) + 1;
+                
+                // 개별 추첨 성공 축하 텍스트 크기도 2배로 조율
+                statusEl.innerHTML = `🎉 <span class="text-emerald-600 font-black text-3xl md:text-4xl px-2 animate-bounce inline-block">${escapeHTML(currentPerson)}</span> 님 👉 <strong class="text-slate-800 font-black text-xl md:text-3xl">${row}행-${col}열</strong> 당첨!`;
+
+                // 다음 주자로 넘어가기 전에 가볍게 기쁨을 만끽하는 대기 타임 (1.2초)
+                await sleep(1200);
             }
 
-            // 🏆 최종 결과 발표 🏆
-            selectedSeats.forEach((seatIndex, idx) => {
-                const finalName = shuffledNames[idx];
-                const seatBtn = document.getElementById(`seat-${seatIndex}`);
-                const seatInner = document.getElementById(`seat-inner-${seatIndex}`);
-
-                // 최종 매칭된 자리는 에메랄드 그린 컬러로 강조
-                seatBtn.className = "seat-ratio w-full rounded-2xl bg-emerald-500 border-2 border-emerald-600 text-white flex flex-col items-center justify-center transition-all duration-300 p-2 font-bold select-none relative overflow-hidden shadow-lg animate-pop";
-                
-                const row = Math.floor(seatIndex / 4) + 1;
-                const col = (seatIndex % 4) + 1;
-                
-                seatBtn.innerHTML = `
-                    <span class="text-[10px] text-emerald-100 font-medium tracking-tight mb-1">${row}행-${col}열</span>
-                    <span class="text-base md:text-xl font-black tracking-wide truncate max-w-full drop-shadow">${escapeHTML(finalName)}</span>
-                `;
-            });
-
-            // 매칭 완료 기쁨의 축하음 재생
-            playSuccessSound();
-
-            // 상태 복구
+            // 전체 연쇄 추첨 종결
+            statusEl.innerHTML = `🥳 모든 인원의 대흥행 자리 매칭이 완료되었습니다!`;
             isDrawing = false;
             document.getElementById('draw-btn').disabled = false;
             document.getElementById('draw-btn').classList.remove('opacity-50', 'cursor-not-allowed');
@@ -451,6 +508,7 @@
             // 상태 데이터 리셋
             selectedSeats = [];
             document.getElementById('names-textarea').value = '';
+            document.getElementById('live-status').innerHTML = `💡 원하는 자리 10개를 선택하고 명단을 입력해 주세요!`;
             
             // UI 초기화
             initGrid();
@@ -467,3 +525,6 @@
     </script>
 </body>
 </html>
+``` eof
+
+전체 화면을 가로지르며 **오직 1인을 위한 심도 깊은 슬로우-다운 룰렛(Decelerating Suspense Roulette)**이 작동하게 되었습니다. 우측 하단의 `랜덤 자리 배치하기!` 버튼을 한 번 눌러보시면, 가속과 감속이 어우러지는 최고의 자리 결정 과정을 시청하실 수 있습니다!
