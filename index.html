@@ -42,7 +42,7 @@
         <!-- 헤더 영역 -->
         <header class="bg-indigo-600 text-white p-6 text-center shadow-md">
             <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">🎯 랜덤 자리 뽑기 프로그램</h1>
-            <p class="text-indigo-100 text-xs md:text-sm mt-2 font-light">가로 4 × 세로 3 격자판에서 10개의 자리를 고르고, 원하는 방식으로 한 명씩 추첨을 진행해 보세요!</p>
+            <p class="text-indigo-100 text-xs md:text-sm mt-2 font-light">다양한 자리 배치 격자판에서 10개의 명당자리를 정하고, 스릴 넘치는 랜덤 배치를 경험해 보세요!</p>
         </header>
 
         <!-- 본문 영역 (2컬럼 반응형 레이아웃) -->
@@ -97,7 +97,7 @@
                 </div>
             </section>
 
-            <!-- 오른쪽 컬럼: 자리 배치 및 4*3 그리드 선택 -->
+            <!-- 오른쪽 컬럼: 자리 배치 및 4*3/8*2 그리드 선택 -->
             <section class="lg:col-span-7 flex flex-col justify-between">
                 <div>
                     <!-- 추첨 모드 제어 선택 탭 -->
@@ -112,17 +112,29 @@
                         </div>
                     </div>
 
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-base md:text-lg font-bold text-slate-700 flex items-center gap-2">
-                            🪑 가로 4 × 세로 3 자리 선택
-                        </h2>
-                        <span id="seat-count-badge" class="text-sm font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-700 transition-colors">
+                    <!-- 자리 배치 모드 선택 영역 -->
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                        <div class="flex flex-col">
+                            <h2 class="text-base md:text-lg font-bold text-slate-700 flex items-center gap-2">
+                                🪑 자리 배치 구조 선택
+                            </h2>
+                            <!-- 격자 토글 버튼 탑재 -->
+                            <div class="flex gap-1.5 mt-2">
+                                <button id="layout-4x3-btn" onclick="setLayout('4x3')" class="px-3 py-1.5 text-xs font-bold rounded-lg border bg-white border-indigo-500 text-indigo-600 shadow-sm transition-all">
+                                    🪑 4 × 3 배치 (12석)
+                                </button>
+                                <button id="layout-8x2-btn" onclick="setLayout('8x2')" class="px-3 py-1.5 text-xs font-medium rounded-lg border bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-800 transition-all">
+                                    🪑 8 × 2 배치 (16석)
+                                </button>
+                            </div>
+                        </div>
+                        <span id="seat-count-badge" class="text-sm self-start md:self-center font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-700 transition-colors">
                             선택된 자리: 0 / 10 개
                         </span>
                     </div>
 
                     <p class="text-xs text-slate-500 mb-4 leading-relaxed">
-                        원하시는 배치 구조에 맞춰 격자판의 12개 영역 중 <strong class="text-indigo-600">정확히 10개의 칸</strong>을 클릭해서 활성화해 주세요.
+                        원하시는 배치 구조에 맞춰 격자판 영역 중 <strong class="text-indigo-600">정확히 10개의 칸</strong>을 클릭해서 활성화해 주세요.
                     </p>
 
                     <!-- 교탁 가상 표시 -->
@@ -137,9 +149,9 @@
                         </div>
                     </div>
 
-                    <!-- 4 * 3 자리 그리드 -->
+                    <!-- 4 * 3 또는 8 * 2 격자 그리드 컨테이너 -->
                     <div class="grid grid-cols-4 gap-3 md:gap-4 max-w-xl mx-auto" id="seat-grid">
-                        <!-- JS로 12개의 자리 생성 -->
+                        <!-- JS로 자리가 동적 렌더링됩니다 -->
                     </div>
                 </div>
 
@@ -172,9 +184,13 @@
     <!-- 자바스크립트 로직 -->
     <script>
         // 전역 상태 변수들
-        const TOTAL_SEATS = 12; // 4 * 3
+        let currentLayout = '4x3'; // '4x3' or '8x2'
+        let cols = 4;
+        let rows = 3;
+        let TOTAL_SEATS = 12; // 4*3=12, 8*2=16
+
         const TARGET_COUNT = 10;
-        let selectedSeats = []; // 선택된 자리의 인덱스 배열 (0 ~ 11)
+        let selectedSeats = []; // 선택된 자리의 인덱스 배열 (0 ~ 11 또는 0 ~ 15)
         let isDrawing = false; // 현재 드로우(애니메이션) 진행 중 여부
         let selectedNameIndex = null; // 순서 교환용으로 선택된 이름의 인덱스
         let currentMode = 'default'; // 'default' (5초 스릴) or 'number' (숫자지정)
@@ -248,6 +264,34 @@
             }, 3000);
         }
 
+        // 레이아웃 스위칭 제어 함수
+        function setLayout(layout) {
+            if (isDrawing) return;
+            currentLayout = layout;
+            playClickSound();
+
+            const btn4x3 = document.getElementById('layout-4x3-btn');
+            const btn8x2 = document.getElementById('layout-8x2-btn');
+
+            if (layout === '4x3') {
+                cols = 4;
+                rows = 3;
+                TOTAL_SEATS = 12;
+                btn4x3.className = "px-3 py-1.5 text-xs font-bold rounded-lg border bg-white border-indigo-500 text-indigo-600 shadow-sm transition-all";
+                btn8x2.className = "px-3 py-1.5 text-xs font-medium rounded-lg border bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-800 transition-all";
+            } else {
+                cols = 8;
+                rows = 2;
+                TOTAL_SEATS = 16;
+                btn8x2.className = "px-3 py-1.5 text-xs font-bold rounded-lg border bg-white border-indigo-500 text-indigo-600 shadow-sm transition-all";
+                btn4x3.className = "px-3 py-1.5 text-xs font-medium rounded-lg border bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-800 transition-all";
+            }
+
+            selectedSeats = [];
+            initGrid();
+            updateCountBadges();
+        }
+
         // 모드 변경 제어 함수
         function setMode(mode) {
             if (isDrawing) return;
@@ -273,16 +317,30 @@
             const gridContainer = document.getElementById('seat-grid');
             gridContainer.innerHTML = '';
 
+            // 그리드 레이아웃 컬럼 동적 적용
+            if (currentLayout === '4x3') {
+                gridContainer.className = "grid grid-cols-4 gap-3 md:gap-4 max-w-xl mx-auto";
+            } else {
+                // 모바일에서도 여백이 충분하도록 gap을 축소 조정
+                gridContainer.className = "grid grid-cols-8 gap-1 md:gap-2.5 max-w-4xl mx-auto animate-pop";
+            }
+
             for (let i = 0; i < TOTAL_SEATS; i++) {
-                const row = Math.floor(i / 4) + 1;
-                const col = (i % 4) + 1;
+                const row = Math.floor(i / cols) + 1;
+                const col = (i % cols) + 1;
 
                 const seatBtn = document.createElement('button');
                 seatBtn.id = `seat-${i}`;
-                seatBtn.className = "seat-ratio w-full rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 transition-all duration-200 transform hover:scale-[1.03] active:scale-[0.97] p-2 select-none relative overflow-hidden";
+                
+                const paddingClass = currentLayout === '4x3' ? "p-2" : "p-1 md:p-2";
+                const labelTextClass = currentLayout === '4x3' ? "text-xs" : "text-[8px] sm:text-xs";
+                const innerTextClass = currentLayout === '4x3' ? "text-2xl" : "text-base sm:text-xl md:text-2xl";
+                const roundedClass = currentLayout === '4x3' ? "rounded-2xl" : "rounded-xl md:rounded-2xl";
+
+                seatBtn.className = `seat-ratio w-full ${roundedClass} bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 transition-all duration-200 transform hover:scale-[1.03] active:scale-[0.97] ${paddingClass} select-none relative overflow-hidden`;
                 seatBtn.innerHTML = `
-                    <span class="text-xs font-semibold opacity-70 tracking-tight">${row}행-${col}열</span>
-                    <span class="text-2xl font-black mt-1" id="seat-inner-${i}">❔</span>
+                    <span class="${labelTextClass} font-semibold opacity-70 tracking-tight">${row}행-${col}열</span>
+                    <span class="${innerTextClass} font-black mt-0.5" id="seat-inner-${i}">❔</span>
                 `;
                 seatBtn.addEventListener('click', () => toggleSeat(i));
                 gridContainer.appendChild(seatBtn);
@@ -317,17 +375,21 @@
             for (let i = 0; i < TOTAL_SEATS; i++) {
                 const seatBtn = document.getElementById(`seat-${i}`);
                 const seatInner = document.getElementById(`seat-inner-${i}`);
-                
+                const roundedClass = currentLayout === '4x3' ? "rounded-2xl" : "rounded-xl md:rounded-2xl";
+                const paddingClass = currentLayout === '4x3' ? "p-2" : "p-1 md:p-2";
+
                 // 선택 되었는지 체크
                 if (selectedSeats.includes(i)) {
                     // 선택된 자리 스타일 적용
-                    seatBtn.className = "seat-ratio w-full rounded-2xl bg-indigo-50 border-2 border-indigo-500 text-indigo-600 flex flex-col items-center justify-center transition-all duration-200 transform scale-[1.02] shadow-md shadow-indigo-100 p-2 font-bold select-none relative overflow-hidden";
-                    seatInner.innerHTML = `<span class="text-indigo-600 font-extrabold text-base md:text-lg animate-pop">선택됨</span>`;
+                    const fontClass = currentLayout === '4x3' ? "text-base md:text-lg" : "text-xs md:text-base";
+                    seatBtn.className = `seat-ratio w-full ${roundedClass} bg-indigo-50 border-2 border-indigo-500 text-indigo-600 flex flex-col items-center justify-center transition-all duration-200 transform scale-[1.02] shadow-md shadow-indigo-100 ${paddingClass} font-bold select-none relative overflow-hidden`;
+                    seatInner.innerHTML = `<span class="text-indigo-600 font-extrabold ${fontClass} animate-pop">선택됨</span>`;
                 } else {
                     // 비활성 자리 기본 스타일
-                    const row = Math.floor(i / 4) + 1;
-                    const col = (i % 4) + 1;
-                    seatBtn.className = "seat-ratio w-full rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-slate-300 transition-all duration-200 p-2 select-none relative overflow-hidden";
+                    const row = Math.floor(i / cols) + 1;
+                    const col = (i % cols) + 1;
+                    const labelTextClass = currentLayout === '4x3' ? "text-xs" : "text-[8px] sm:text-xs";
+                    seatBtn.className = `seat-ratio w-full ${roundedClass} bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-slate-300 transition-all duration-200 ${paddingClass} select-none relative overflow-hidden`;
                     seatInner.innerHTML = `🚫`;
                 }
             }
@@ -500,36 +562,51 @@
         // 임시 하이라이트 중인 대기 좌석 상태 복원
         function revertSeat(index) {
             const btn = document.getElementById(`seat-${index}`);
-            const row = Math.floor(index / 4) + 1;
-            const col = (index % 4) + 1;
-            btn.className = "seat-ratio w-full rounded-2xl bg-indigo-50 border-2 border-indigo-200 text-indigo-400 flex flex-col items-center justify-center transition-all duration-200 p-2 font-bold select-none relative overflow-hidden";
+            const row = Math.floor(index / cols) + 1;
+            const col = (index % cols) + 1;
+            const labelTextClass = currentLayout === '4x3' ? "text-xs" : "text-[8px] sm:text-xs";
+            const innerTextClass = currentLayout === '4x3' ? "text-xs md:text-sm" : "text-[8px] sm:text-xs";
+            const paddingClass = currentLayout === '4x3' ? "p-2" : "p-1 md:p-2";
+            const roundedClass = currentLayout === '4x3' ? "rounded-2xl" : "rounded-xl md:rounded-2xl";
+
+            btn.className = `seat-ratio w-full ${roundedClass} bg-indigo-50 border-2 border-indigo-200 text-indigo-400 flex flex-col items-center justify-center transition-all duration-200 ${paddingClass} font-bold select-none relative overflow-hidden`;
             btn.innerHTML = `
-                <span class="text-xs font-semibold opacity-70 tracking-tight">${row}행-${col}열</span>
-                <span class="text-indigo-400 font-semibold text-xs md:text-sm animate-pulse mt-1">대기</span>
+                <span class="${labelTextClass} font-semibold opacity-70 tracking-tight">${row}행-${col}열</span>
+                <span class="text-indigo-400 font-semibold ${innerTextClass} animate-pulse mt-1">대기</span>
             `;
         }
 
         // 룰렛 진행 중 임시 하이라이트 상태 (주황/옐로우 계열 피드백)
         function highlightSeat(index, name) {
             const btn = document.getElementById(`seat-${index}`);
-            const row = Math.floor(index / 4) + 1;
-            const col = (index % 4) + 1;
-            btn.className = "seat-ratio w-full rounded-2xl bg-amber-400 border-2 border-amber-500 text-slate-900 flex flex-col items-center justify-center transition-all duration-75 transform scale-[1.05] shadow-md shadow-amber-200 p-2 font-bold select-none relative overflow-hidden z-10 animate-pop";
+            const row = Math.floor(index / cols) + 1;
+            const col = (index % cols) + 1;
+            const labelTextClass = currentLayout === '4x3' ? "text-[10px]" : "text-[8px] sm:text-[10px]";
+            const innerTextClass = currentLayout === '4x3' ? "text-xs md:text-sm" : "text-[9px] sm:text-xs";
+            const paddingClass = currentLayout === '4x3' ? "p-2" : "p-1 md:p-2";
+            const roundedClass = currentLayout === '4x3' ? "rounded-2xl" : "rounded-xl md:rounded-2xl";
+
+            btn.className = `seat-ratio w-full ${roundedClass} bg-amber-400 border-2 border-amber-500 text-slate-900 flex flex-col items-center justify-center transition-all duration-75 transform scale-[1.05] shadow-md shadow-amber-200 ${paddingClass} font-bold select-none relative overflow-hidden z-10 animate-pop`;
             btn.innerHTML = `
-                <span class="text-[10px] text-slate-700 font-semibold mb-1">${row}행-${col}열</span>
-                <span class="text-xs md:text-sm font-black truncate max-w-full text-slate-950">${escapeHTML(name)}?</span>
+                <span class="${labelTextClass} text-slate-700 font-semibold mb-1">${row}행-${col}열</span>
+                <span class="${innerTextClass} font-black truncate max-w-full text-slate-950">${escapeHTML(name)}?</span>
             `;
         }
 
         // 최종 안착 상태 (그린 계열 피드백)
         function lockSeat(index, name) {
             const btn = document.getElementById(`seat-${index}`);
-            const row = Math.floor(index / 4) + 1;
-            const col = (index % 4) + 1;
-            btn.className = "seat-ratio w-full rounded-2xl bg-emerald-500 border-2 border-emerald-600 text-white flex flex-col items-center justify-center transition-all duration-300 p-2 font-bold select-none relative overflow-hidden shadow-lg animate-pop";
+            const row = Math.floor(index / cols) + 1;
+            const col = (index % cols) + 1;
+            const labelTextClass = currentLayout === '4x3' ? "text-[10px]" : "text-[8px] sm:text-[10px]";
+            const innerTextClass = currentLayout === '4x3' ? "text-base md:text-xl" : "text-xs sm:text-base";
+            const paddingClass = currentLayout === '4x3' ? "p-2" : "p-1 md:p-2";
+            const roundedClass = currentLayout === '4x3' ? "rounded-2xl" : "rounded-xl md:rounded-2xl";
+
+            btn.className = `seat-ratio w-full ${roundedClass} bg-emerald-500 border-2 border-emerald-600 text-white flex flex-col items-center justify-center transition-all duration-300 ${paddingClass} font-bold select-none relative overflow-hidden shadow-lg animate-pop`;
             btn.innerHTML = `
-                <span class="text-[10px] text-emerald-100 font-medium tracking-tight mb-1">${row}행-${col}열</span>
-                <span class="text-base md:text-xl font-black tracking-wide truncate max-w-full drop-shadow">${escapeHTML(name)}</span>
+                <span class="${labelTextClass} text-emerald-100 font-medium tracking-tight mb-1">${row}행-${col}열</span>
+                <span class="${innerTextClass} font-black tracking-wide truncate max-w-full drop-shadow">${escapeHTML(name)}</span>
             `;
         }
 
@@ -601,6 +678,16 @@
                 numBtn.disabled = true;
                 defBtn.classList.add('opacity-50', 'cursor-not-allowed');
                 numBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+
+            // 레이아웃 변경 버튼도 비활성화
+            const layout4x3Btn = document.getElementById('layout-4x3-btn');
+            const layout8x2Btn = document.getElementById('layout-8x2-btn');
+            if (layout4x3Btn && layout8x2Btn) {
+                layout4x3Btn.disabled = true;
+                layout8x2Btn.disabled = true;
+                layout4x3Btn.classList.add('opacity-50', 'cursor-not-allowed');
+                layout8x2Btn.classList.add('opacity-50', 'cursor-not-allowed');
             }
 
             // 미리보기 영역 내 이름들의 클릭 불가 상태 유도를 위해 리렌더링
@@ -700,8 +787,8 @@
                 lockSeat(finalSeat, currentPerson);
                 playSuccessSound();
 
-                const row = Math.floor(finalSeat / 4) + 1;
-                const col = (finalSeat % 4) + 1;
+                const row = Math.floor(finalSeat / cols) + 1;
+                const col = (finalSeat % cols) + 1;
                 
                 // 개별 추첨 성공 축하 텍스트 크기 조율
                 statusEl.innerHTML = `🎉 <span class="text-emerald-600 font-black text-3xl md:text-4xl px-2 animate-bounce inline-block">${escapeHTML(currentPerson)}</span> 님 👉 <strong class="text-slate-800 font-black text-xl md:text-3xl">${row}행-${col}열</strong> 당첨!`;
@@ -727,6 +814,14 @@
                 numBtn.disabled = false;
                 defBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 numBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+
+            // 레이아웃 스위치 버튼 활성화 복구
+            if (layout4x3Btn && layout8x2Btn) {
+                layout4x3Btn.disabled = false;
+                layout8x2Btn.disabled = false;
+                layout4x3Btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                layout8x2Btn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
 
             // 추첨 종료 후 다시 이름 클릭 및 교환 활성화
